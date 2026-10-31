@@ -17,15 +17,5 @@ Aplikasi Streamlit untuk analisis risiko saham menggunakan **Value at Risk (VaR)
 python -m pip install -r requirements.txt
 python -m streamlit run investa.py
 ```
-
-## Deploy ke Streamlit Community Cloud
-1. Buat repository GitHub publik, lalu upload `investa.py` dan `requirements.txt` ke direktori utama repository. `README.md` dan `.gitignore` juga boleh diikutkan.
-2. Buka https://share.streamlit.io, login, kemudian pilih **Create app**.
-3. Pilih repository, branch `main`, dan isi **Main file path**: `investa.py`.
-4. Jika diperlukan, pada **Advanced settings** gunakan Python 3.12.
-5. Klik **Deploy**. Setelah aplikasi aktif, uji menu **Download Data Saham**, **Upload & Uji Normalitas**, kalkulasi VaR/ES dan ekspor Excel.
-
 ## Catatan
 - Tanggal unduhan harga saham menggunakan layanan yfinance/Yahoo Finance, sehingga memerlukan koneksi internet dan bergantung pada layanan pihak ketiga.
-- Jangan upload data pribadi, kredensial, atau data internal perusahaan ke repository publik.
-- Aplikasi ini untuk keperluan akademik dan edukasi, bukan rekomendasi investasi.
