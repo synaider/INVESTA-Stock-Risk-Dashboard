@@ -602,6 +602,10 @@ with tab2:
         <div class="box-success">
             ✅ <strong>Data tersedia</strong> — {ticker_symbol} · {stock_name} &nbsp;|&nbsp; {len(close_price)} baris
         </div>
+        <div class="box-info">
+            ➡️ Data ini sudah otomatis tersedia di <strong>Tab 3</strong> — pilih sumber
+            <strong>"Gunakan Data dari Tab 2"</strong>, tidak perlu download &amp; upload ulang.
+        </div>
         """, unsafe_allow_html=True)
 
         st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
@@ -849,11 +853,13 @@ with tab2:
             use_container_width=True
         )
 with tab3:
-    st.header("Upload Data & Uji Normalitas")
+    st.header("Data & Uji Normalitas")
 
     st.markdown("""
     <div class="box-info">
         <strong>ℹ️ Informasi:</strong><br>
+        • Sumber data bisa <strong>langsung dari Tab 2</strong> (hasil unduhan Yahoo Finance) atau
+          <strong>upload file Excel</strong> sendiri<br>
         • File Excel (.xlsx / .xls) dengan kolom tanggal (<code>Date</code> / <code>ref.date</code>) dan harga penutupan (<code>Close</code> / <code>price.close</code>)<br>
         • Kolom OHLC dan Volume bersifat opsional — digunakan untuk candlestick chart<br>
         • Return yang dianalisis adalah <strong>log return</strong> [ln(P<sub>t</sub>/P<sub>t−1</sub>)]<br>
@@ -865,6 +871,23 @@ with tab3:
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
 
+    # ============================================================
+    # PILIH SUMBER DATA — dari Tab 2 atau upload Excel
+    # ============================================================
+    SRC_TAB2   = "📥 Gunakan Data dari Tab 2 (Yahoo Finance)"
+    SRC_UPLOAD = "📂 Upload File Excel"
+
+    tab2_available = 'tab2_close_price' in st.session_state
+
+    data_source = st.radio(
+        "Sumber Data",
+        [SRC_TAB2, SRC_UPLOAD],
+        index=0 if tab2_available else 1,
+        horizontal=True,
+        key="data_source_tab3"
+    )
+    use_tab2 = (data_source == SRC_TAB2)
+
     col_cfg1, col_cfg2 = st.columns(2)
     with col_cfg1:
         alpha_test = st.selectbox(
@@ -875,22 +898,61 @@ with tab3:
             key="alpha_test_tab3"
         )
     with col_cfg2:
-        market_type = st.radio(
-            "Jenis Pasar",
-            ["🇮🇩 Saham Indonesia (IDX)", "🌐 Saham Internasional"],
-            horizontal=True,
-            key="market_type_tab3"
+        if use_tab2 and tab2_available:
+            # Jenis pasar mengikuti pilihan di Tab 2 agar mata uang konsisten
+            market_type = st.session_state.get('tab2_market_type', "🇮🇩 Saham Indonesia (IDX)")
+            st.markdown(
+                f'<p class="text-hint">Jenis Pasar (mengikuti Tab 2)</p>'
+                f'<p class="text-body"><strong>{market_type}</strong></p>',
+                unsafe_allow_html=True
+            )
+        else:
+            market_type = st.radio(
+                "Jenis Pasar",
+                ["🇮🇩 Saham Indonesia (IDX)", "🌐 Saham Internasional"],
+                horizontal=True,
+                key="market_type_tab3"
+            )
+
+    df_source     = None   # DataFrame dari Tab 2
+    uploaded_file = None   # file Excel dari uploader
+
+    if use_tab2:
+        if tab2_available:
+            df_source = (st.session_state['tab2_close_price']
+                         .drop(columns=['Log Return'], errors='ignore')
+                         .copy())
+            _t2_ticker = st.session_state.get('tab2_ticker', '-')
+            _t2_name   = st.session_state.get('tab2_stock_name', '-')
+            _t2_dates  = pd.to_datetime(df_source['Date'], errors='coerce').dropna()
+            _t2_period = (f"{_t2_dates.min():%d/%m/%Y} – {_t2_dates.max():%d/%m/%Y}"
+                          if not _t2_dates.empty else "-")
+            st.markdown(
+                f'<div class="box-success">✅ Menggunakan data dari Tab 2 — '
+                f'<strong>{_t2_ticker}</strong> · {_t2_name} &nbsp;|&nbsp; '
+                f'{len(df_source)} baris &nbsp;|&nbsp; Periode {_t2_period}</div>',
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown(
+                '<div class="box-warning">⚠️ Belum ada data di Tab 2. Silakan unduh data saham di '
+                '<strong>Tab 2 (Download Data Saham)</strong> terlebih dahulu, atau pilih '
+                '<strong>Upload File Excel</strong>.</div>',
+                unsafe_allow_html=True
+            )
+    else:
+        uploaded_file = st.file_uploader(
+            "Upload File Excel Data Saham",
+            type=['xlsx', 'xls'],
+            key="upload_file_tab3"
         )
 
-    uploaded_file = st.file_uploader(
-        "Upload File Excel Data Saham",
-        type=['xlsx', 'xls'],
-        key="upload_file_tab3"
-    )
-
-    if uploaded_file is not None:
+    if df_source is not None or uploaded_file is not None:
         try:
-            df = pd.read_excel(uploaded_file)
+            if uploaded_file is not None:
+                df = pd.read_excel(uploaded_file)
+            else:
+                df = df_source
 
             # ---- Deteksi kolom tanggal ----
             date_col = None
@@ -1781,7 +1843,7 @@ with tab3:
 
         except Exception as e:
             st.markdown(
-                f'<div class="box-error">❌ Error membaca file: {str(e)}</div>',
+                f'<div class="box-error">❌ Error memproses data: {str(e)}</div>',
                 unsafe_allow_html=True
             )
             import traceback
